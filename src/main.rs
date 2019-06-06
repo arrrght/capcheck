@@ -1,27 +1,29 @@
 #[macro_use]
 extern crate log;
 
-use prometheus::{Counter, Encoder, IntGauge, Opts, Registry, TextEncoder};
+use prometheus::{IntCounter, Encoder, IntGauge, Opts, Registry, TextEncoder};
 use reqwest::Client;
 use std::io::Read;
 use std::time::Instant;
 
-const CAP_URL: &str = "https://cap.avtocod.ru";
-//const CAP_URL: &str = "http://127.0.0.1:8088";
+const CAP_NAME: &str = "cap2";
 
 fn main() {
     env_logger::init();
+    let cap_url = &std::env::var("CAP_URL").unwrap_or("http://127.0.0.1:8080".to_owned());
+    println!("CAP_URL/Checking {}", cap_url);
 
     let reg = Registry::new();
-    let retry_cnt = Counter::with_opts(Opts::new("retry_counter", "Retry counter")).unwrap();
-    let gauge = IntGauge::with_opts(Opts::new("access_time", "Access time to CapMonster")).unwrap();
-    let error = IntGauge::with_opts(Opts::new("error", "some error")).unwrap();
+    let retry_cnt = IntCounter::with_opts(Opts::new("retry_counter", "Retry counter").const_label("name", CAP_NAME)).unwrap();
+    let gauge = IntGauge::with_opts(Opts::new("access_time", "Access time to CapMonster").const_label("name", CAP_NAME)).unwrap();
+    let error = IntGauge::with_opts(Opts::new("error", "some error").const_label("name", CAP_NAME)).unwrap();
 
     reg.register(Box::new(retry_cnt.clone())).unwrap();
     reg.register(Box::new(gauge.clone())).unwrap();
     reg.register(Box::new(error.clone())).unwrap();
 
-    let client = Client::new().post(&format!("{}/in.php", CAP_URL));
+    let client = Client::new().post(&format!("{}/in.php", cap_url));
+    println!("client: {:?}", client);
     let file_part = reqwest::multipart::Part::bytes(&include_bytes!("generate.jpg")[..])
         .file_name("generate.jpg")
         .mime_str("image/jpeg")
@@ -41,7 +43,7 @@ fn main() {
     let mut ret: Option<String> = None;
     while ret.is_none() {
         retry_cnt.inc();
-        let check_api = format!("{}/res.php?action=get&id={}", CAP_URL, ans_int);
+        let check_api = format!("{}/res.php?action=get&id={}", cap_url, ans_int);
         let req_get = reqwest::get(&check_api).unwrap().text();
         ret = match req_get.unwrap().as_ref() {
             "CAPCHA_NOT_READY" => {

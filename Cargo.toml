@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 #hyper = "0.12"
 reqwest = "0.9.14"
-prometheus = "0.4"
+prometheus = "0.5"
 log = "0.4"
 env_logger = "0.6"
 
